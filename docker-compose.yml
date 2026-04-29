@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16
+    container_name: school-man-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - schoolman_postgres_data:/var/lib/postgresql/data
+
+  scanner:
+    build:
+      context: ../school-man-scanner
+      dockerfile: Dockerfile
+    container_name: school-man-scanner
+    restart: unless-stopped
+
+  back:
+    build:
+      context: ../school-man-back
+      dockerfile: Dockerfile
+    container_name: school-man-back
+    restart: unless-stopped
+    depends_on:
+      - db
+      - scanner
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      SCANNER_BASE_URL: ${SCANNER_BASE_URL}
+      SCANNER_TIMEOUT_MS: ${SCANNER_TIMEOUT_MS}
+      EMAIL_ENABLED: ${EMAIL_ENABLED}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_SECURE: ${EMAIL_SECURE}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS}
+      EMAIL_BULK_BATCH_SIZE: ${EMAIL_BULK_BATCH_SIZE}
+    ports:
+      - "3000:3000"
+
+  front:
+    build:
+      context: ../school-man-front
+      dockerfile: Dockerfile
+    container_name: school-man-front
+    restart: unless-stopped
+    depends_on:
+      - back
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  schoolman_postgres_data:

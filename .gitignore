@@ -1,0 +1,9 @@
+.env
+.DS_Store
+AGENTS.md
+/docs/
+*.zip
+**/*.zip
+*.md
+**/*.md
+!README.md
