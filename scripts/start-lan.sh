@@ -28,11 +28,30 @@ ensure_env_value() {
   printf '%s=%s\n' "$key" "$value" >> .env
 }
 
-ensure_env_value "BIND_ADDRESS" "0.0.0.0"
-ensure_env_value "DB_MIGRATIONS_RUN" "false"
-ensure_env_value "SCANNER_BASE_URL" "http://scanner:8010"
-ensure_env_value "SCANNER_TIMEOUT_MS" "120000"
-ensure_env_value "SCHOOL_SCANNER_OCR_ENGINE" "tesseract"
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  if grep -q "^${key}=" .env; then
+    tmp_file="$(mktemp)"
+    awk -v key="$key" -v value="$value" '
+      BEGIN { updated = 0 }
+      $0 ~ "^" key "=" {
+        print key "=" value
+        updated = 1
+        next
+      }
+      { print }
+      END {
+        if (updated == 0) {
+          print key "=" value
+        }
+      }
+    ' .env > "$tmp_file"
+    mv "$tmp_file" .env
+  else
+    printf '%s=%s\n' "$key" "$value" >> .env
+  fi
+}
 
 detect_lan_ip() {
   if command -v ipconfig >/dev/null 2>&1; then
@@ -50,6 +69,13 @@ detect_lan_ip() {
 }
 
 LAN_IP="$(detect_lan_ip || true)"
+BIND_ADDRESS="${LAN_IP:-0.0.0.0}"
+
+set_env_value "BIND_ADDRESS" "$BIND_ADDRESS"
+ensure_env_value "DB_MIGRATIONS_RUN" "false"
+ensure_env_value "SCANNER_BASE_URL" "http://scanner:8010"
+ensure_env_value "SCANNER_TIMEOUT_MS" "120000"
+ensure_env_value "SCHOOL_SCANNER_OCR_ENGINE" "tesseract"
 
 echo "Building SchoolMan containers..."
 docker compose build

@@ -44,7 +44,7 @@ docker --version
 docker compose version
 ```
 
-Fast path: run the LAN startup script. It detects this machine's local IP, creates `.env` from `.env.example` when missing, fills safe deployment defaults, builds the containers, starts the stack, and prints the URL for other devices:
+Fast path: run the LAN startup script. It detects this machine's local IP, creates `.env` from `.env.example` when missing, writes the detected IP into `BIND_ADDRESS`, fills safe deployment defaults, builds the containers, starts the stack, and prints the URL for other devices:
 
 ```bash
 ./scripts/start-lan.sh
@@ -104,13 +104,27 @@ The easiest way is:
 
 It prints both the local URL and the URL that another device should use.
 
-The stack publishes the frontend and backend on `BIND_ADDRESS`. The default is:
+The stack publishes the frontend and backend on `BIND_ADDRESS`.
+
+When you run:
+
+```bash
+./scripts/start-lan.sh
+```
+
+the script writes the detected LAN IP into `.env`, for example:
+
+```dotenv
+BIND_ADDRESS=192.168.100.22
+```
+
+Manual setup can still use the all-interfaces default:
 
 ```dotenv
 BIND_ADDRESS=0.0.0.0
 ```
 
-That means Docker listens on all network interfaces of the host machine. Other devices on the same Wi-Fi/LAN can open the app with the host machine's local IP address.
+`0.0.0.0` means Docker listens on all network interfaces of the host machine. A specific IP, such as `192.168.100.22`, binds deployment to that interface.
 
 On macOS, find the local IP with:
 
@@ -140,7 +154,7 @@ If another device cannot connect:
 
 - Make sure both devices are on the same network.
 - Make sure Docker is running.
-- Check that `docker compose ps` shows `0.0.0.0:8080->80/tcp` for `front`.
+- Check that `docker compose ps` shows `YOUR_LOCAL_IP:8080->80/tcp` or `0.0.0.0:8080->80/tcp` for `front`.
 - Allow incoming connections to Docker/port `8080` in the host firewall.
 - Use the frontend URL only; browser traffic to the backend goes through `/api` on the same frontend host.
 
