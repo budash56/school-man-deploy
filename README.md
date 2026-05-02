@@ -48,6 +48,8 @@ Edit `.env` and confirm database, JWT, email, and scanner values. Inside Docker 
 ```dotenv
 DATABASE_URL=postgres://postgres:change-me@db:5432/schoolmg
 SCANNER_BASE_URL=http://scanner:8010
+SCANNER_TIMEOUT_MS=120000
+SCHOOL_SCANNER_OCR_ENGINE=tesseract
 ```
 
 Build and start the stack:
@@ -109,3 +111,4 @@ docker compose exec -T db sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 - Put a real TLS-terminating proxy or load balancer in front of the stack for public access.
 - Avoid exposing the backend or database directly to the internet.
 - Keep the scanner container running for planilla OCR workflows.
+- The bundled Nginx config allows planilla image uploads up to 25 MB and keeps `/api` proxy reads open long enough for OCR fallback work.
