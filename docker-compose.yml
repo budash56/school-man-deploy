@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:17
     container_name: school-man-db
     restart: unless-stopped
     environment:
@@ -9,6 +9,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - schoolman_postgres_data:/var/lib/postgresql/data
+      - ./SchoolManBeta.sql:/docker-entrypoint-initdb.d/01-schoolman.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   scanner:
     build:
@@ -26,12 +32,15 @@ services:
     container_name: school-man-back
     restart: unless-stopped
     depends_on:
-      - db
-      - scanner
+      db:
+        condition: service_healthy
+      scanner:
+        condition: service_started
     environment:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
+      DB_MIGRATIONS_RUN: ${DB_MIGRATIONS_RUN:-false}
       JWT_SECRET: ${JWT_SECRET}
       SCANNER_BASE_URL: ${SCANNER_BASE_URL:-http://scanner:8010}
       SCANNER_TIMEOUT_MS: ${SCANNER_TIMEOUT_MS:-120000}

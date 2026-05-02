@@ -33,7 +33,7 @@ The Compose file builds the app containers from those sibling repositories. If o
 - `docker-compose.yml`: defines the database, scanner, backend, and frontend containers.
 - `nginx/default.conf`: serves the React app and proxies `/api` traffic to the backend.
 - `.env.example`: template for deployment configuration.
-- `SchoolManBeta.sql`: optional database dump/seed file for restoring a prepared environment.
+- `SchoolManBeta.sql`: database dump used to initialize a fresh deployment database.
 
 ## Getting Started
 
@@ -47,6 +47,7 @@ Edit `.env` and confirm database, JWT, email, and scanner values. Inside Docker 
 
 ```dotenv
 DATABASE_URL=postgres://postgres:change-me@db:5432/schoolmg
+DB_MIGRATIONS_RUN=false
 SCANNER_BASE_URL=http://scanner:8010
 SCANNER_TIMEOUT_MS=120000
 SCHOOL_SCANNER_OCR_ENGINE=tesseract
@@ -67,15 +68,16 @@ http://localhost:8080
 
 ## Database Options
 
-You can start with an empty database and let the backend migrations run automatically.
+On first startup, PostgreSQL imports `SchoolManBeta.sql` automatically from `/docker-entrypoint-initdb.d`. The backend is configured with `DB_MIGRATIONS_RUN=false`, so database creation comes from the SQL dump rather than TypeORM migrations.
 
-For a prepared demo or recovery environment, restore the provided SQL dump into a fresh database:
+This import only happens when the Docker volume is empty. If you already started the stack and want to rebuild the database from the SQL dump, remove the database volume first:
 
 ```bash
-docker compose exec -T db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < SchoolManBeta.sql
+docker compose down -v
+docker compose up -d
 ```
 
-Use the dump only on a new or intentionally reset database.
+Use `down -v` carefully: it deletes the local database volume.
 
 ## Day-To-Day Operations
 
