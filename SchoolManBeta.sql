@@ -867,7 +867,8 @@ CREATE TABLE public.planilla_sheets (
     is_active boolean DEFAULT true NOT NULL,
     imported_by character varying(50),
     imported_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    import_closed_at timestamp with time zone
 );
 
 
@@ -3691,6 +3692,13 @@ CREATE INDEX idx_planilla_sheets_grade_group ON public.planilla_sheets USING btr
 
 
 --
+-- Name: idx_planilla_sheets_import_closed_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_planilla_sheets_import_closed_at ON public.planilla_sheets USING btree (import_closed_at);
+
+
+--
 -- Name: uniq_active_student_category; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4235,4 +4243,3 @@ ALTER TABLE ONLY public.timetable_assignments
 --
 -- PostgreSQL database dump complete
 --
-
