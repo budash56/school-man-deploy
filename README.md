@@ -44,6 +44,20 @@ docker --version
 docker compose version
 ```
 
+Fast path: run the LAN startup script. It detects this machine's local IP, creates `.env` from `.env.example` when missing, fills safe deployment defaults, builds the containers, starts the stack, and prints the URL for other devices:
+
+```bash
+./scripts/start-lan.sh
+```
+
+Use the printed LAN URL from another device on the same Wi-Fi/LAN, for example:
+
+```text
+http://192.168.100.22:8080
+```
+
+Manual setup is below if you prefer to run the Compose commands yourself.
+
 Create the environment file:
 
 ```bash
@@ -81,6 +95,14 @@ http://localhost:8080
 ```
 
 ## Access From Other Devices On The Same Network
+
+The easiest way is:
+
+```bash
+./scripts/start-lan.sh
+```
+
+It prints both the local URL and the URL that another device should use.
 
 The stack publishes the frontend and backend on `BIND_ADDRESS`. The default is:
 
