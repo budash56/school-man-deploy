@@ -37,6 +37,13 @@ The Compose file builds the app containers from those sibling repositories. If o
 
 ## Getting Started
 
+Install Docker Desktop or Docker Engine with the Compose plugin, then confirm Compose is available:
+
+```bash
+docker --version
+docker compose version
+```
+
 Create the environment file:
 
 ```bash
@@ -60,17 +67,51 @@ docker compose build
 docker compose up -d
 ```
 
+Check that every container is running:
+
+```bash
+docker compose ps
+```
+
 Open the app:
 
 ```text
 http://localhost:8080
 ```
 
-## Database Options
+## Database Initialization
 
-On first startup, PostgreSQL imports `SchoolManBeta.sql` automatically from `/docker-entrypoint-initdb.d`. The backend is configured with `DB_MIGRATIONS_RUN=false`, so database creation comes from the SQL dump rather than TypeORM migrations.
+This deployment creates the database from `SchoolManBeta.sql`, not from TypeORM migrations.
 
-This import only happens when the Docker volume is empty. If you already started the stack and want to rebuild the database from the SQL dump, remove the database volume first:
+How it works:
+
+- `docker-compose.yml` mounts `SchoolManBeta.sql` into the Postgres container at `/docker-entrypoint-initdb.d/01-schoolman.sql`.
+- The official Postgres image automatically runs files in that folder only when the database volume is empty.
+- The backend receives `DB_MIGRATIONS_RUN=false`, so it does not try to create or migrate the schema.
+- The backend waits for the Postgres healthcheck before starting.
+
+For a first-time setup, the normal start command is enough:
+
+```bash
+docker compose up -d
+```
+
+Watch the database import if needed:
+
+```bash
+docker compose logs -f db
+```
+
+After import, verify that the backend and frontend started:
+
+```bash
+docker compose ps
+docker compose logs --tail=100 back
+```
+
+## Reset Database From SQL
+
+The SQL import does not run again while the existing Postgres volume remains. To intentionally delete the local database and recreate it from `SchoolManBeta.sql`, run:
 
 ```bash
 docker compose down -v
@@ -78,6 +119,8 @@ docker compose up -d
 ```
 
 Use `down -v` carefully: it deletes the local database volume.
+
+If you need to preserve data, create a backup before resetting.
 
 ## Day-To-Day Operations
 
@@ -98,6 +141,20 @@ Rebuild after changing source repositories:
 ```bash
 docker compose build
 docker compose up -d
+```
+
+Rebuild only one service:
+
+```bash
+docker compose build back
+docker compose up -d back
+```
+
+Restart OCR scanner after scanner changes:
+
+```bash
+docker compose build scanner
+docker compose up -d scanner back front
 ```
 
 Back up the database:
