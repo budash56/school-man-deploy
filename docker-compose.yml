@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:17
-    container_name: school-man-db
+    container_name: ${DEPLOYMENT_NAME:-school-man}-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -20,7 +20,7 @@ services:
     build:
       context: ../school-man-scanner
       dockerfile: Dockerfile
-    container_name: school-man-scanner
+    container_name: ${DEPLOYMENT_NAME:-school-man}-scanner
     restart: unless-stopped
     environment:
       SCHOOL_SCANNER_OCR_ENGINE: ${SCHOOL_SCANNER_OCR_ENGINE:-tesseract}
@@ -29,7 +29,7 @@ services:
     build:
       context: ../school-man-back
       dockerfile: Dockerfile
-    container_name: school-man-back
+    container_name: ${DEPLOYMENT_NAME:-school-man}-back
     restart: unless-stopped
     depends_on:
       db:
@@ -55,18 +55,20 @@ services:
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS}
       EMAIL_BULK_BATCH_SIZE: ${EMAIL_BULK_BATCH_SIZE}
     ports:
-      - "${BIND_ADDRESS:-0.0.0.0}:3000:3000"
+      - "${BIND_ADDRESS:-0.0.0.0}:${BACK_PORT:-3000}:3000"
 
   front:
     build:
       context: ../school-man-front
       dockerfile: Dockerfile
-    container_name: school-man-front
+      args:
+        VITE_ENABLE_TEST_FEATURES: ${VITE_ENABLE_TEST_FEATURES:-false}
+    container_name: ${DEPLOYMENT_NAME:-school-man}-front
     restart: unless-stopped
     depends_on:
       - back
     ports:
-      - "${BIND_ADDRESS:-0.0.0.0}:8080:80"
+      - "${BIND_ADDRESS:-0.0.0.0}:${FRONT_PORT:-8080}:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
 

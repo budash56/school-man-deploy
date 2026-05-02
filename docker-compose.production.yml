@@ -1,0 +1,5 @@
+services:
+  front:
+    build:
+      args:
+        VITE_ENABLE_TEST_FEATURES: "false"

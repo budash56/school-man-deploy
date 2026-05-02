@@ -31,8 +31,12 @@ The Compose file builds the app containers from those sibling repositories. If o
 ## What Each File Is For
 
 - `docker-compose.yml`: defines the database, scanner, backend, and frontend containers.
+- `docker-compose.production.yml`: production override; testing-only frontend controls are disabled.
+- `docker-compose.testing.yml`: testing override; enables test helper controls such as random planilla IDs and random grades.
 - `nginx/default.conf`: serves the React app and proxies `/api` traffic to the backend.
 - `.env.example`: template for deployment configuration.
+- `.env.production.example`: production environment template.
+- `.env.testing.example`: testing environment template.
 - `SchoolManBeta.sql`: database dump used to initialize a fresh deployment database.
 
 ## Getting Started
@@ -44,62 +48,115 @@ docker --version
 docker compose version
 ```
 
-Fast path: run the LAN startup script. It detects this machine's local IP, creates `.env` from `.env.example` when missing, writes the detected IP into `BIND_ADDRESS`, fills safe deployment defaults, builds the containers, starts the stack, and prints the URL for other devices:
+Fast path: run the LAN startup script. It detects this machine's local IP, creates the matching environment file when missing, writes the detected IP into `BIND_ADDRESS`, fills safe deployment defaults, builds the containers, starts the stack, and prints the URL for other devices.
+
+Production:
 
 ```bash
-./scripts/start-lan.sh
+./scripts/start-production.sh
 ```
 
-Use the printed LAN URL from another device on the same Wi-Fi/LAN, for example:
+Testing:
+
+```bash
+./scripts/start-testing.sh
+```
+
+Production runs on port `8080`. Testing runs on port `8081` and shows testing-only buttons such as random planilla IDs and random grades.
+
+Use the printed LAN URL from another device on the same Wi-Fi/LAN. Production example:
 
 ```text
 http://192.168.100.22:8080
 ```
 
-Manual setup is below if you prefer to run the Compose commands yourself.
+Testing example:
 
-Create the environment file:
-
-```bash
-cp .env.example .env
+```text
+http://192.168.100.22:8081
 ```
 
-Edit `.env` and confirm database, JWT, email, and scanner values. Inside Docker Compose, service hostnames should use container names, for example:
+Manual setup is below if you prefer to run the Compose commands yourself.
+
+Create the production environment file:
+
+```bash
+cp .env.production.example .env.production
+```
+
+Or create the testing environment file:
+
+```bash
+cp .env.testing.example .env.testing
+```
+
+Edit the chosen file and confirm database, JWT, email, ports, and scanner values. Inside Docker Compose, service hostnames should use container names, for example:
 
 ```dotenv
 DATABASE_URL=postgres://postgres:change-me@db:5432/schoolmg
 DB_MIGRATIONS_RUN=true
 BIND_ADDRESS=0.0.0.0
+FRONT_PORT=8080
+BACK_PORT=3000
+VITE_ENABLE_TEST_FEATURES=false
 SCANNER_BASE_URL=http://scanner:8010
 SCANNER_TIMEOUT_MS=120000
 SCHOOL_SCANNER_OCR_ENGINE=tesseract
 ```
 
-Build and start the stack:
+Build and start production manually:
 
 ```bash
-docker compose build
-docker compose up -d
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml build
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml up -d
+```
+
+Build and start testing manually:
+
+```bash
+docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml build
+docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml up -d
 ```
 
 Check that every container is running:
 
 ```bash
-docker compose ps
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml ps
 ```
 
-Open the app:
+Open production:
 
 ```text
 http://localhost:8080
 ```
+
+Open testing:
+
+```text
+http://localhost:8081
+```
+
+## Production And Testing
+
+Production and testing are separate Compose projects with separate container names, ports, and database volumes.
+
+- Production project: `school-man-production`
+- Production frontend: `http://localhost:8080`
+- Production backend port: `3000`
+- Production test helpers: disabled
+- Testing project: `school-man-testing`
+- Testing frontend: `http://localhost:8081`
+- Testing backend port: `3001`
+- Testing test helpers: enabled
+
+This means you can keep production data separate from testing data. If both stacks are running, use the port to choose which one you are opening.
 
 ## Access From Other Devices On The Same Network
 
 The easiest way is:
 
 ```bash
-./scripts/start-lan.sh
+./scripts/start-production.sh
 ```
 
 It prints both the local URL and the URL that another device should use.
@@ -109,10 +166,10 @@ The stack publishes the frontend and backend on `BIND_ADDRESS`.
 When you run:
 
 ```bash
-./scripts/start-lan.sh
+./scripts/start-production.sh
 ```
 
-the script writes the detected LAN IP into `.env`, for example:
+the script writes the detected LAN IP into `.env.production`, for example:
 
 ```dotenv
 BIND_ADDRESS=192.168.100.22
@@ -154,8 +211,8 @@ If another device cannot connect:
 
 - Make sure both devices are on the same network.
 - Make sure Docker is running.
-- Check that `docker compose ps` shows `YOUR_LOCAL_IP:8080->80/tcp` or `0.0.0.0:8080->80/tcp` for `front`.
-- Allow incoming connections to Docker/port `8080` in the host firewall.
+- Check that Compose `ps` shows `YOUR_LOCAL_IP:8080->80/tcp` for production or `YOUR_LOCAL_IP:8081->80/tcp` for testing.
+- Allow incoming connections to Docker/port `8080` for production or `8081` for testing in the host firewall.
 - Use the frontend URL only; browser traffic to the backend goes through `/api` on the same frontend host.
 
 ## Database Initialization
