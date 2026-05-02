@@ -72,7 +72,7 @@ LAN_IP="$(detect_lan_ip || true)"
 BIND_ADDRESS="${LAN_IP:-0.0.0.0}"
 
 set_env_value "BIND_ADDRESS" "$BIND_ADDRESS"
-ensure_env_value "DB_MIGRATIONS_RUN" "false"
+set_env_value "DB_MIGRATIONS_RUN" "true"
 ensure_env_value "SCANNER_BASE_URL" "http://scanner:8010"
 ensure_env_value "SCANNER_TIMEOUT_MS" "120000"
 ensure_env_value "SCHOOL_SCANNER_OCR_ENGINE" "tesseract"

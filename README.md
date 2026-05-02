@@ -68,7 +68,7 @@ Edit `.env` and confirm database, JWT, email, and scanner values. Inside Docker 
 
 ```dotenv
 DATABASE_URL=postgres://postgres:change-me@db:5432/schoolmg
-DB_MIGRATIONS_RUN=false
+DB_MIGRATIONS_RUN=true
 BIND_ADDRESS=0.0.0.0
 SCANNER_BASE_URL=http://scanner:8010
 SCANNER_TIMEOUT_MS=120000
@@ -160,13 +160,14 @@ If another device cannot connect:
 
 ## Database Initialization
 
-This deployment creates the database from `SchoolManBeta.sql`, not from TypeORM migrations.
+This deployment creates the initial database from `SchoolManBeta.sql`, then lets the backend run any newer TypeORM migrations that are not already recorded in the `migrations` table.
 
 How it works:
 
 - `docker-compose.yml` mounts `SchoolManBeta.sql` into the Postgres container at `/docker-entrypoint-initdb.d/01-schoolman.sql`.
 - The official Postgres image automatically runs files in that folder only when the database volume is empty.
-- The backend receives `DB_MIGRATIONS_RUN=false`, so it does not try to create or migrate the schema.
+- The SQL dump includes the migration baseline for the schema it contains.
+- The backend receives `DB_MIGRATIONS_RUN=true`, so it applies only migrations that have not already been recorded.
 - The backend waits for the Postgres healthcheck before starting.
 
 For a first-time setup, the normal start command is enough:
