@@ -55,6 +55,7 @@ Edit `.env` and confirm database, JWT, email, and scanner values. Inside Docker 
 ```dotenv
 DATABASE_URL=postgres://postgres:change-me@db:5432/schoolmg
 DB_MIGRATIONS_RUN=false
+BIND_ADDRESS=0.0.0.0
 SCANNER_BASE_URL=http://scanner:8010
 SCANNER_TIMEOUT_MS=120000
 SCHOOL_SCANNER_OCR_ENGINE=tesseract
@@ -78,6 +79,48 @@ Open the app:
 ```text
 http://localhost:8080
 ```
+
+## Access From Other Devices On The Same Network
+
+The stack publishes the frontend and backend on `BIND_ADDRESS`. The default is:
+
+```dotenv
+BIND_ADDRESS=0.0.0.0
+```
+
+That means Docker listens on all network interfaces of the host machine. Other devices on the same Wi-Fi/LAN can open the app with the host machine's local IP address.
+
+On macOS, find the local IP with:
+
+```bash
+ipconfig getifaddr en0
+```
+
+If that returns nothing, try:
+
+```bash
+ipconfig getifaddr en1
+```
+
+Then open this from another device on the same network:
+
+```text
+http://YOUR_LOCAL_IP:8080
+```
+
+Example:
+
+```text
+http://192.168.100.22:8080
+```
+
+If another device cannot connect:
+
+- Make sure both devices are on the same network.
+- Make sure Docker is running.
+- Check that `docker compose ps` shows `0.0.0.0:8080->80/tcp` for `front`.
+- Allow incoming connections to Docker/port `8080` in the host firewall.
+- Use the frontend URL only; browser traffic to the backend goes through `/api` on the same frontend host.
 
 ## Database Initialization
 
