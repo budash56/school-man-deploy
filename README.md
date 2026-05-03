@@ -259,6 +259,61 @@ Use `down -v` carefully: it deletes the local database volume.
 
 If you need to preserve data, create a backup before resetting.
 
+## Clear Testing Data But Keep Admins
+
+Use this only on the testing stack. It removes school data, imported timetables, planillas, students, teachers, courses, subjects, classrooms, and school years, but keeps users whose role is `admin`.
+
+Make sure the testing stack is running:
+
+```bash
+./scripts/start-testing.sh
+```
+
+Then run:
+
+```bash
+docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+BEGIN;
+
+TRUNCATE TABLE
+  public.attendance,
+  public.audit_logs,
+  public.buildings,
+  public.calendar_events,
+  public.class_group_curriculum_overrides,
+  public.class_group_fixed_locations,
+  public.class_groups,
+  public.classrooms,
+  public.course_instances,
+  public.courses,
+  public.curricula,
+  public.curriculum_items,
+  public.disciplinary_records,
+  public.enrollments,
+  public.grade_scheme_values,
+  public.grade_schemes,
+  public.grades,
+  public.notifications,
+  public.planilla_sheets,
+  public.school_years,
+  public.students,
+  public.subject_areas,
+  public.subjects,
+  public.teacher_subjects,
+  public.terms,
+  public.timetable_assignments,
+  public.timetable_slots
+RESTART IDENTITY CASCADE;
+
+DELETE FROM public.users WHERE role <> 'admin';
+ALTER SEQUENCE IF EXISTS public.print_generation_seq RESTART WITH 1;
+
+COMMIT;
+SQL
+```
+
+After this reset, sign in with an admin user, create a school year, and import the timetable PDF from `/dashboard/timetable`.
+
 ## Day-To-Day Operations
 
 Start or restart everything:
