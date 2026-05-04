@@ -7,6 +7,7 @@ AGENTS.md
 /docs/
 *.zip
 **/*.zip
+backups/
 *.md
 **/*.md
 !README.md

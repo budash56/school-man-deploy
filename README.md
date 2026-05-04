@@ -1,22 +1,8 @@
-# SchoolMan Deployment
+# SchoolMan Deployment Manual
 
-SchoolMan Deployment is the Docker Compose wrapper for running the full SchoolMan stack together. It does not contain the application source code; it coordinates the backend, frontend, scanner, and PostgreSQL database from sibling repositories.
+This repository is the easiest way to run the complete SchoolMan system with Docker. It starts the database, backend, frontend, scanner service, and Nginx proxy together, so the system can be opened from the host computer or from other devices on the same local network.
 
-Use this repository when you want to run SchoolMan as a complete environment instead of starting each service manually.
-
-## What It Runs
-
-The deployment stack includes:
-
-- PostgreSQL for application data.
-- SchoolMan Backend for authentication, business rules, and APIs.
-- SchoolMan Frontend for the staff dashboard.
-- SchoolScanner for OCR-assisted planilla scanning.
-- Nginx for serving the frontend and proxying browser `/api` requests to the backend.
-
-## Repository Layout
-
-The deployment expects this sibling folder layout:
+SchoolMan is split into four sibling repositories:
 
 ```text
 schoolMan/
@@ -26,29 +12,48 @@ schoolMan/
   school-man-deploy/
 ```
 
-The Compose file builds the app containers from those sibling repositories. If one is missing or renamed, the build will fail.
+Keep that folder structure. The deployment builds the application containers from those sibling folders.
 
-## What Each File Is For
+## Before You Start
 
-- `docker-compose.yml`: defines the database, scanner, backend, and frontend containers.
-- `docker-compose.production.yml`: production override; testing-only frontend controls are disabled.
-- `docker-compose.testing.yml`: testing override; enables test helper controls such as random planilla IDs and random grades.
-- `nginx/default.conf`: serves the React app and proxies `/api` traffic to the backend.
-- `.env.example`: template for deployment configuration.
-- `.env.production.example`: production environment template.
-- `.env.testing.example`: testing environment template.
-- `SchoolManBeta.sql`: database dump used to initialize a fresh deployment database.
+Install these tools first:
 
-## Getting Started
+- Git, to clone and update the repositories.
+- Docker Desktop, or Docker Engine with the Docker Compose plugin.
 
-Install Docker Desktop or Docker Engine with the Compose plugin, then confirm Compose is available:
+Check that they are available:
 
 ```bash
+git --version
 docker --version
 docker compose version
 ```
 
-Fast path: run the LAN startup script. It detects this machine's local IP, creates the matching environment file when missing, writes the detected IP into `BIND_ADDRESS`, fills safe deployment defaults, builds the containers, starts the stack, and prints the URL for other devices.
+Docker must be running before starting SchoolMan.
+
+## First Installation
+
+Clone or place all four repositories inside the same `schoolMan` folder:
+
+```bash
+mkdir -p ~/schoolMan
+cd ~/schoolMan
+
+git clone https://github.com/budash56/SchoolManagementBack.git school-man-back
+git clone https://github.com/budash56/SchoolManagementFront.git school-man-front
+git clone https://github.com/budash56/school-man-scanner.git school-man-scanner
+git clone https://github.com/budash56/school-man-deploy.git school-man-deploy
+```
+
+Then enter the deployment repository:
+
+```bash
+cd ~/schoolMan/school-man-deploy
+```
+
+## Recommended Start
+
+Use the startup scripts. They detect the computer's local IP address, write it into the correct `.env` file, build the containers, start the stack, and print the URL to open.
 
 Production:
 
@@ -62,40 +67,56 @@ Testing:
 ./scripts/start-testing.sh
 ```
 
-Production runs on port `8080`. Testing runs on port `8081` and shows testing-only buttons such as random planilla IDs and random grades.
+Production opens on port `8080`. Testing opens on port `8081` and enables testing-only controls.
 
-Use the printed LAN URL from another device on the same Wi-Fi/LAN. Production example:
-
-```text
-http://192.168.100.22:8080
-```
-
-Testing example:
+Example output:
 
 ```text
-http://192.168.100.22:8081
+Open on this machine:      http://localhost:8080
+Open from another device:  http://192.168.68.114:8080
 ```
 
-Manual setup is below if you prefer to run the Compose commands yourself.
+Use the second URL from phones, tablets, or other computers connected to the same Wi-Fi/LAN.
 
-Create the production environment file:
+If your shell says `command not found`, run the script with `./` from inside `school-man-deploy`:
 
 ```bash
-cp .env.production.example .env.production
+cd ~/schoolMan/school-man-deploy
+./scripts/start-production.sh
 ```
 
-Or create the testing environment file:
+## Production Or Testing
+
+Use production for real data:
 
 ```bash
-cp .env.testing.example .env.testing
+./scripts/start-production.sh
 ```
 
-Edit the chosen file and confirm database, JWT, email, ports, and scanner values. Inside Docker Compose, service hostnames should use container names, for example:
+Use testing when you need random IDs, random grades, test helpers, or a disposable environment:
+
+```bash
+./scripts/start-testing.sh
+```
+
+The two environments use different Compose projects, ports, and database volumes:
+
+- Production project: `school-man-production`
+- Production URL: `http://localhost:8080`
+- Production backend port: `3000`
+- Testing project: `school-man-testing`
+- Testing URL: `http://localhost:8081`
+- Testing backend port: `3001`
+
+## What The Script Changes
+
+The script creates `.env.production` or `.env.testing` if it does not exist. It also updates these values:
 
 ```dotenv
-DATABASE_URL=postgres://postgres:change-me@db:5432/schoolmg
+COMPOSE_PROJECT_NAME=school-man-production
+DEPLOYMENT_NAME=school-man-production
+BIND_ADDRESS=192.168.68.114
 DB_MIGRATIONS_RUN=true
-BIND_ADDRESS=0.0.0.0
 FRONT_PORT=8080
 BACK_PORT=3000
 VITE_ENABLE_TEST_FEATURES=false
@@ -104,262 +125,169 @@ SCANNER_TIMEOUT_MS=120000
 SCHOOL_SCANNER_OCR_ENGINE=tesseract
 ```
 
-Build and start production manually:
+`BIND_ADDRESS` is the detected local IP. That is what lets other local devices reach the system.
+
+For testing, the script writes testing values such as port `8081` and `VITE_ENABLE_TEST_FEATURES=true`.
+
+## First Login And Daily Use
+
+After the containers are running, open the printed URL in the browser.
+
+Use the admin account that exists in the database dump. After logging in, the normal setup flow is:
+
+1. Check or create the active school year.
+2. Create areas and subjects if they are missing.
+3. Import curriculum and class groups from the ASC Horarios course schedule.
+4. Import professors, workload, and timetable relationships from the ASC Horarios professor schedule.
+5. Review classrooms, users, enrollment, planillas, attendance, calendar, and documents from the admin menu.
+
+The timetable imports are designed to complement each other. The course schedule import creates academic structure such as groups, courses, and curriculum. The professor schedule import adds professors, course relationships, workload, and class sessions.
+
+## Database Initialization
+
+Fresh deployments create the database from `SchoolManBeta.sql`, not from the ORM schema alone.
+
+How it works:
+
+- `docker-compose.yml` mounts `SchoolManBeta.sql` into the Postgres container.
+- Postgres runs that SQL automatically only when the database volume is empty.
+- The backend then runs pending migrations with `DB_MIGRATIONS_RUN=true`.
+- Migrations only apply if they have not already been recorded.
+
+This means first startup can take longer while the database is imported.
+
+Watch database logs:
 
 ```bash
-docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml build
-docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml up -d
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml logs -f db
 ```
 
-Build and start testing manually:
+Watch backend logs:
 
 ```bash
-docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml build
-docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml up -d
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml logs -f back
 ```
 
-Check that every container is running:
+## Common Commands
+
+Show production containers:
 
 ```bash
 docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml ps
 ```
 
-Open production:
+Stop production:
 
-```text
-http://localhost:8080
+```bash
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml down
 ```
 
-Open testing:
-
-```text
-http://localhost:8081
-```
-
-## Production And Testing
-
-Production and testing are separate Compose projects with separate container names, ports, and database volumes.
-
-- Production project: `school-man-production`
-- Production frontend: `http://localhost:8080`
-- Production backend port: `3000`
-- Production test helpers: disabled
-- Testing project: `school-man-testing`
-- Testing frontend: `http://localhost:8081`
-- Testing backend port: `3001`
-- Testing test helpers: enabled
-
-This means you can keep production data separate from testing data. If both stacks are running, use the port to choose which one you are opening.
-
-## Access From Other Devices On The Same Network
-
-The easiest way is:
+Start production again:
 
 ```bash
 ./scripts/start-production.sh
 ```
 
-It prints both the local URL and the URL that another device should use.
-
-The stack publishes the frontend and backend on `BIND_ADDRESS`.
-
-When you run:
+Show testing containers:
 
 ```bash
+docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml ps
+```
+
+Stop testing:
+
+```bash
+docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml down
+```
+
+## Reset The Database
+
+Only do this when you intentionally want to delete the local database volume and recreate it from `SchoolManBeta.sql`.
+
+Production reset:
+
+```bash
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml down -v
 ./scripts/start-production.sh
 ```
 
-the script writes the detected LAN IP into `.env.production`, for example:
+Testing reset:
 
-```dotenv
-BIND_ADDRESS=192.168.100.22
+```bash
+docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml down -v
+./scripts/start-testing.sh
 ```
 
-Manual setup can still use the all-interfaces default:
+`down -v` deletes the local database volume. Create a backup first if you need the data later.
+
+## Manual Start Without The Script
+
+Production:
+
+```bash
+cp .env.production.example .env.production
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml build
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml up -d
+```
+
+Testing:
+
+```bash
+cp .env.testing.example .env.testing
+docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml build
+docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml up -d
+```
+
+For manual LAN access, set `BIND_ADDRESS` in the chosen `.env` file:
 
 ```dotenv
 BIND_ADDRESS=0.0.0.0
 ```
 
-`0.0.0.0` means Docker listens on all network interfaces of the host machine. A specific IP, such as `192.168.100.22`, binds deployment to that interface.
+or use the computer's local IP:
 
-On macOS, find the local IP with:
+```dotenv
+BIND_ADDRESS=192.168.68.114
+```
+
+On macOS, you can check the IP with:
 
 ```bash
 ipconfig getifaddr en0
 ```
 
-If that returns nothing, try:
+If that returns nothing:
 
 ```bash
 ipconfig getifaddr en1
 ```
 
-Then open this from another device on the same network:
+## Troubleshooting
 
-```text
-http://YOUR_LOCAL_IP:8080
-```
+If another device cannot open SchoolMan:
 
-Example:
+- Confirm both devices are on the same network.
+- Confirm Docker is running.
+- Use the URL printed by the startup script.
+- Check that the frontend container is publishing `8080` for production or `8081` for testing.
+- Allow incoming connections to Docker or the selected port in the host firewall.
+- Open the frontend URL only. Browser API calls go through `/api` on the same host.
 
-```text
-http://192.168.100.22:8080
-```
+If scanner imports fail:
 
-If another device cannot connect:
-
-- Make sure both devices are on the same network.
-- Make sure Docker is running.
-- Check that Compose `ps` shows `YOUR_LOCAL_IP:8080->80/tcp` for production or `YOUR_LOCAL_IP:8081->80/tcp` for testing.
-- Allow incoming connections to Docker/port `8080` for production or `8081` for testing in the host firewall.
-- Use the frontend URL only; browser traffic to the backend goes through `/api` on the same frontend host.
-
-## Database Initialization
-
-This deployment creates the initial database from `SchoolManBeta.sql`, then lets the backend run any newer TypeORM migrations that are not already recorded in the `migrations` table.
-
-How it works:
-
-- `docker-compose.yml` mounts `SchoolManBeta.sql` into the Postgres container at `/docker-entrypoint-initdb.d/01-schoolman.sql`.
-- The official Postgres image automatically runs files in that folder only when the database volume is empty.
-- The SQL dump includes the migration baseline for the schema it contains.
-- The backend receives `DB_MIGRATIONS_RUN=true`, so it applies only migrations that have not already been recorded.
-- The backend waits for the Postgres healthcheck before starting.
-
-For a first-time setup, the normal start command is enough:
+- Check that the scanner container is running.
+- Keep `SCANNER_BASE_URL=http://scanner:8010` inside Docker.
+- Check scanner logs from the deployment repository:
 
 ```bash
-docker compose up -d
+docker compose --env-file .env.production -p school-man-production -f docker-compose.yml -f docker-compose.production.yml logs -f scanner
 ```
 
-Watch the database import if needed:
+If a change does not appear after pulling updates:
 
 ```bash
-docker compose logs -f db
+git pull
+./scripts/start-production.sh
 ```
 
-After import, verify that the backend and frontend started:
-
-```bash
-docker compose ps
-docker compose logs --tail=100 back
-```
-
-## Reset Database From SQL
-
-The SQL import does not run again while the existing Postgres volume remains. To intentionally delete the local database and recreate it from `SchoolManBeta.sql`, run:
-
-```bash
-docker compose down -v
-docker compose up -d
-```
-
-Use `down -v` carefully: it deletes the local database volume.
-
-If you need to preserve data, create a backup before resetting.
-
-## Clear Testing Data But Keep Admins
-
-Use this only on the testing stack. It removes school data, imported timetables, planillas, students, teachers, courses, subjects, classrooms, and school years, but keeps users whose role is `admin`.
-
-Make sure the testing stack is running:
-
-```bash
-./scripts/start-testing.sh
-```
-
-Then run:
-
-```bash
-docker compose --env-file .env.testing -p school-man-testing -f docker-compose.yml -f docker-compose.testing.yml exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
-BEGIN;
-
-TRUNCATE TABLE
-  public.attendance,
-  public.audit_logs,
-  public.buildings,
-  public.calendar_events,
-  public.class_group_curriculum_overrides,
-  public.class_group_fixed_locations,
-  public.class_groups,
-  public.classrooms,
-  public.course_instances,
-  public.courses,
-  public.curricula,
-  public.curriculum_items,
-  public.disciplinary_records,
-  public.enrollments,
-  public.grade_scheme_values,
-  public.grade_schemes,
-  public.grades,
-  public.notifications,
-  public.planilla_sheets,
-  public.school_years,
-  public.students,
-  public.subject_areas,
-  public.subjects,
-  public.teacher_subjects,
-  public.terms,
-  public.timetable_assignments,
-  public.timetable_slots
-RESTART IDENTITY CASCADE;
-
-DELETE FROM public.users WHERE role <> 'admin';
-ALTER SEQUENCE IF EXISTS public.print_generation_seq RESTART WITH 1;
-
-COMMIT;
-SQL
-```
-
-After this reset, sign in with an admin user, create a school year, and import the timetable PDF from `/dashboard/timetable`.
-
-## Day-To-Day Operations
-
-Start or restart everything:
-
-```bash
-docker compose up -d
-```
-
-View logs:
-
-```bash
-docker compose logs -f
-```
-
-Rebuild after changing source repositories:
-
-```bash
-docker compose build
-docker compose up -d
-```
-
-Rebuild only one service:
-
-```bash
-docker compose build back
-docker compose up -d back
-```
-
-Restart OCR scanner after scanner changes:
-
-```bash
-docker compose build scanner
-docker compose up -d scanner back front
-```
-
-Back up the database:
-
-```bash
-mkdir -p backups
-docker compose exec -T db sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > backups/schoolman-$(date +%F).sql
-```
-
-## Production Notes
-
-- Replace all placeholder secrets before real deployment.
-- Put a real TLS-terminating proxy or load balancer in front of the stack for public access.
-- Avoid exposing the backend or database directly to the internet.
-- Keep the scanner container running for planilla OCR workflows.
-- The bundled Nginx config allows planilla image uploads up to 25 MB and keeps `/api` proxy reads open long enough for OCR fallback work.
+The script rebuilds the containers before starting them.
